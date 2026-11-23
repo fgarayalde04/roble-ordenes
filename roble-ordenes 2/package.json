@@ -1,0 +1,17 @@
+{
+  "name": "roble-ordenes",
+  "version": "1.0.0",
+  "description": "Prototipo Módulo de Órdenes – Roble Capital (HGTD, ORT)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.22.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
