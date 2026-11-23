@@ -38,16 +38,29 @@ const icons = {
   list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
 };
 
+const SUBS = {
+  inicio: ['Cómo funciona', 'Flujo de la orden y pantallas'],
+  desk: ['Trading Desk hoy', 'Órdenes del día por estado'],
+  enviar: ['Enviar órdenes', 'Formulario único formato BCU'],
+  respuestas: ['Respuestas de clientes', 'Aprobaciones con código'],
+  blotter: ['Blotter', 'Historial y Registro BCU'],
+};
 function navFor(rol) {
-  const all = {
-    desk: ['Trading Desk hoy', icons.desk],
-    enviar: ['Enviar órdenes', icons.send],
-    respuestas: ['Respuestas de clientes', icons.mail],
-    blotter: [rol === 'asesor' ? 'Mis órdenes' : 'Blotter', icons.list],
-  };
-  const keys = { asesor: ['enviar', 'blotter'], mesa: ['desk', 'enviar', 'respuestas', 'blotter'], cumplimiento: ['blotter', 'respuestas'] }[rol];
-  return keys.map(k => [k, ...all[k]]);
+  const keys = { asesor: ['inicio', 'enviar', 'blotter'], mesa: ['inicio', 'desk', 'enviar', 'respuestas', 'blotter'], cumplimiento: ['inicio', 'blotter', 'respuestas'] }[rol];
+  return keys.map(k => [k, k === 'blotter' && rol === 'asesor' ? 'Mis órdenes' : SUBS[k][0]]);
 }
+const MODULES = [
+  ['Inicio', 'Mis accesos rápidos', '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
+  ['Centro de Control', 'Operaciones, pendientes e indicadores', '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'],
+  ['Clientes', 'Clientes, Banco Central y aperturas', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'],
+  ['Órdenes', 'Enviar órdenes a Trading Desk y blotter', '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>', true],
+  ['Inversiones', 'Clientes: carteras y propuestas', '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'],
+  ['Mercado', 'Cómo viene el mercado', '<path d="m3 17 6-6 4 4 8-8M15 7h6v6"/>'],
+  ['Research', 'Novedades, visión y monitores', '<path d="M4 4h12l4 4v12H4z"/><path d="M8 12h8M8 16h5"/>'],
+  ['Dirección', 'Dashboard, KPIs y liquidación', '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
+];
+const ico = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const LOGO = `<div class="brand"><img src="https://roble-crm-development.up.railway.app/download.png" alt="Roble Capital" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'brand-txt',innerHTML:'ROBLE<b>CAPITAL</b><small>WEALTH MANAGEMENT</small>'}))"></div>`;
 const route = () => (location.hash.replace('#/', '') || '').split('?')[0];
 
 // ---------- arranque ----------
@@ -66,12 +79,13 @@ async function renderLogin() {
   const users = await api('GET', '/api/users');
   $app.innerHTML = `<div class="login">
     <div class="l">
-      <div class="logo"><div class="mark">R</div><div><b>Roble Capital</b><span>Wealth Management</span></div></div>
+      ${LOGO}
       <div>
-        <h1>Cada orden, con su aprobación y su responsable.</h1>
-        <p>Módulo de Órdenes: formulario único con los campos del BCU, aprobación del cliente por mail con código, seguimiento por estados en la Mesa y Blotter que funciona como Registro de Instrucciones.</p>
+        <div class="eyebrow">ROBLE CAPITAL · CRM</div>
+        <h1>Módulo de Órdenes</h1>
+        <p>Cada orden con su aprobación y su responsable: formulario único con los campos del BCU, confirmación del cliente por mail con código, seguimiento en Trading Desk y Blotter como Registro de Instrucciones.</p>
       </div>
-      <p class="small" style="opacity:.6">Prototipo académico · HGTD · Universidad ORT Uruguay · Datos de prueba ficticios</p>
+      <p class="small" style="opacity:.55">Prototipo académico · HGTD · Universidad ORT Uruguay · Datos de prueba ficticios</p>
     </div>
     <div class="r"><div class="box">
       <h2 style="margin:0 0 4px">Ingresar</h2>
@@ -81,7 +95,7 @@ async function renderLogin() {
         <button class="btn primary">Ingresar</button>
       </form>
       <div class="muted small" style="margin:22px 0 10px;text-transform:uppercase;letter-spacing:.8px">Cuentas de demostración</div>
-      ${users.map(u => `<button class="acc" data-email="${esc(u.email)}"><span class="av">${initials(u.nombre)}</span><span><b>${esc(u.nombre)}</b><br><span class="muted small">${esc(u.email)}</span></span><span class="rl">${ROLES[u.rol]}</span></button>`).join('')}
+      ${users.map(u => `<button class="acc" data-email="${esc(u.email)}"><span class="av">${initials(u.nombre)}</span><span><b>${esc(u.nombre)}</b><br><span class="muted small">${esc(u.email)}</span></span><span class="rl r-${u.rol}">${ROLES[u.rol]}</span></button>`).join('')}
     </div></div></div>`;
   const login = async email => { try { await api('POST', '/api/login', { email }); location.hash = ''; boot(); } catch (e) { toast(e.message, true); } };
   $app.querySelector('#lg').onsubmit = e => { e.preventDefault(); login(e.target.email.value); };
@@ -92,27 +106,68 @@ async function renderLogin() {
 async function render() {
   const r = route();
   S.orders = await api('GET', '/api/orders');
-  const pendRev = S.orders.filter(o => ['pendiente_revision'].includes(o.estado)).length;
+  const pendRev = S.orders.filter(o => o.estado === 'pendiente_revision').length;
   const sinOrden = S.me.rol !== 'asesor' ? (await api('GET', '/api/responses')).filter(x => !x.ordenId).length : 0;
-  const counts = { desk: pendRev, respuestas: sinOrden };
+  const counts = { desk: pendRev, respuestas: sinOrden, enviar: S.me.rol === 'asesor' ? S.orders.filter(o => o.estado === 'devuelta').length : 0 };
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const title = r === 'blotter' && S.me.rol === 'asesor' ? 'Mis órdenes' : SUBS[r][0];
   $app.innerHTML = `<div class="shell">
     <aside class="side">
-      <div class="logo"><div class="mark">R</div><div><b>Roble Capital</b><span>Órdenes</span></div></div>
-      <nav class="nav">${navFor(S.me.rol).map(([k, label, ic]) => `<a href="#/${k}" class="${r === k ? 'on' : ''}">${ic}${label}${counts[k] ? `<span class="cnt">${counts[k]}</span>` : ''}</a>`).join('')}</nav>
+      ${LOGO}
+      <div class="search">${ico('<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>')}<span>Buscar…</span><kbd>Ctrl K</kbd></div>
+      <nav class="nav">${MODULES.map(([t, sub, d, active]) => active
+        ? `<div class="mod on"><div class="mi">${ico(d)}<div><b>${t}</b>${total ? `<span class="cnt">${total}</span>` : ''}<small>${sub}</small></div>${ico('<path d="m6 9 6 6 6-6"/>')}</div>
+            <div class="subnav">${navFor(S.me.rol).map(([k, label]) => `<a href="#/${k}" class="${r === k ? 'on' : ''}">${label}${counts[k] ? `<span class="cnt">${counts[k]}</span>` : ''}</a>`).join('')}</div></div>`
+        : `<div class="mod off" title="Fuera del alcance de este prototipo"><div class="mi">${ico(d)}<div><b>${t}</b><small>${sub}</small></div>${ico('<path d="m9 6 6 6-6 6"/>')}</div></div>`).join('')}</nav>
       <div class="foot">
-        <div class="who">${esc(S.me.nombre)}</div>
-        <div style="opacity:.7;margin-bottom:10px">${ROLES[S.me.rol]} · ${esc(S.me.email)}</div>
-        <button id="logout">Cambiar de usuario</button><button id="reset">Reiniciar demo</button>
+        <div class="usercard"><span class="avg">${esc(S.me.nombre[0])}</span><div><b>${esc(S.me.nombre)}</b><small>${ROLES[S.me.rol]}</small></div></div>
+        <div class="footbtns"><button id="logout">${ico('<path d="M15 4h4v16h-4M10 17l5-5-5-5M15 12H3"/>')}Cambiar de usuario</button><button id="reset">${ico('<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/>')}Reiniciar demo</button></div>
       </div>
     </aside>
-    <main class="main" id="main"></main></div>`;
+    <div class="content">
+      <header class="topbar"><span></span><b>${title}</b><div class="tb-r"><span class="bell">${ico('<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/>')}${total ? '<i></i>' : ''}</span><span class="avg">${esc(S.me.nombre[0])}</span></div></header>
+      <div class="crumbs">${ico('<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>')}<span>Inicio</span>›<a href="#/inicio">Órdenes</a>›<b>${title}</b></div>
+      <div class="ptabs">${navFor(S.me.rol).filter(([k]) => k !== 'inicio').map(([k, label]) => `<a href="#/${k}" class="${r === k ? 'on' : ''}">${label}</a>`).join('')}</div>
+      <main class="main" id="main"></main>
+    </div></div>`;
   document.getElementById('logout').onclick = async () => { await api('POST', '/api/logout'); S.me = null; S.form = null; boot(); };
   document.getElementById('reset').onclick = () => confirmModal('Reiniciar datos de demostración', 'Se borran los cambios hechos y se vuelven a cargar las órdenes de prueba.', async () => { await api('POST', '/api/reset'); S.form = null; toast('Datos de demostración reiniciados'); render(); });
-  const views = { enviar: viewEnviar, desk: viewDesk, respuestas: viewRespuestas, blotter: viewBlotter };
+  const views = { inicio: viewInicio, enviar: viewEnviar, desk: viewDesk, respuestas: viewRespuestas, blotter: viewBlotter };
   await views[r]();
 }
+
+// ---------- CÓMO FUNCIONA (hub del módulo) ----------
+async function viewInicio() {
+  const n = e => S.orders.filter(o => e.includes(o.estado)).length;
+  const cards = navFor(S.me.rol).filter(([k]) => k !== 'inicio').map(([k, label]) => {
+    const desc = { desk: 'La Mesa revisa, envía el mail al cliente, toma la orden aprobada y la ejecuta.', enviar: 'El asesor carga la orden en un formulario único. Si falta un dato del BCU, no se puede enviar.', respuestas: 'Se lee el código de confirmación del mail del cliente y se asocia a la orden.', blotter: 'Todas las órdenes con su aprobación y ejecución. De acá sale el Registro de Instrucciones.' }[k];
+    const ic = { desk: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>', enviar: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>', respuestas: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>', blotter: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>' }[k];
+    return `<a class="hubcard" href="#/${k}"><span class="hubic">${ico(ic)}</span><b>${label}</b><p>${desc}</p><span class="open">Abrir →</span></a>`;
+  }).join('');
+  const steps = [
+    ['1', 'Asesor', 'Carga la orden', 'Cliente, fecha, quién opera y activos. Campos BCU obligatorios.', 'pendiente_revision'],
+    ['2', 'Mesa', 'Revisa', 'Controla la orden. Si hay un error, la devuelve al asesor.', 'en_revision'],
+    ['3', 'Mesa', 'Envía el mail', 'El cliente recibe la orden con un código de confirmación.', 'mail_enviado'],
+    ['4', 'Cliente', 'Aprueba', 'Responde "Confirmo" con el código. Se asocia a la orden con fecha y hora.', 'aprobada'],
+    ['5', 'Mesa', 'Ejecuta', 'Un operador la toma, la ejecuta en el banco o Insigneo y la registra.', 'ejecutada'],
+    ['6', 'Cumplimiento', 'Reporta', 'El Blotter genera el Registro de Instrucciones trimestral para el BCU.', null],
+  ];
+  main().innerHTML = `
+  <div class="head"><div><h1>Órdenes</h1><p>Enviar órdenes a Trading Desk, aprobación del cliente y blotter</p></div></div>
+  <div class="hubgrid">${cards}</div>
+  <div class="panel" style="margin-top:20px"><div class="ph"><div><h3>Cómo viaja una orden</h3><p class="muted small" style="margin:2px 0 0">Cada paso queda registrado con su responsable en el historial de la orden</p></div></div>
+    <div class="steps">${steps.map(([num, who, t, d, st]) => `<div class="step"><div class="sn">${num}</div><span class="who">${who}</span><b>${t}</b><p>${d}</p>${st ? badge(st) : '<span class="badge s-ejecutada">Registro BCU</span>'}</div>`).join('')}</div>
+  </div>
+  <div class="grid3" style="margin-top:20px">
+    <div class="tile t-amber"><span>Por revisar</span><b>${n(['pendiente_revision', 'en_revision'])}</b></div>
+    <div class="tile t-indigo"><span>Esperando cliente</span><b>${n(['en_trading_desk', 'mail_enviado'])}</b></div>
+    <div class="tile t-purple"><span>Para ejecutar</span><b>${n(['aprobada', 'en_ejecucion'])}</b></div>
+    <div class="tile t-green"><span>Ejecutadas (total)</span><b>${n(['ejecutada'])}</b></div>
+  </div>
+  <div class="demo-banner" style="margin-top:20px"><b>Prototipo con datos de prueba.</b> El ingreso con Google y el envío/lectura de Gmail están simulados; el flujo, las validaciones, los estados y el registro funcionan igual que en el diseño.</div>`;
+}
 const main = () => document.getElementById('main');
-const banner = `<div class="demo-banner"><b>Prototipo con datos de prueba.</b> El ingreso con Google y el envío/lectura de Gmail están simulados en esta versión publicada; el flujo, las validaciones, los estados y el registro funcionan igual que en el diseño.</div>`;
+const banner = '';
 
 // ---------- ENVIAR ÓRDENES ----------
 const emptyAsset = () => ({ operacion: 'Compra', tipo: 'Acción', instrumento: '', ticker: '', moneda: 'USD', cantidad: '', precioTipo: 'Mercado', precioLim: '', vigencia: 'Día', monto: '' });
@@ -505,7 +560,7 @@ function exportCSV(rows) {
   const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [head.join(';')];
   rows.forEach(o => o.activos.forEach((a, i) => lines.push([o.numero + (i ? '-' + (i + 1) : ''), o.creada, o.cliente.numero, o.cliente.nombre, o.asesor.nombre, a.operacion, a.tipo, a.instrumento, a.ticker, a.moneda, a.cantidad, a.monto, a.precio, S.meta.estados[o.estado], o.fechaRespuesta, o.operador?.nombre, o.fechaEjecucion, o.ejecutadaEn].map(q).join(';'))));
-  const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `blotter_${today()}.csv`; a.click();
 }
 
