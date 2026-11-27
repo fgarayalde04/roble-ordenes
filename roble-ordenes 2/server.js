@@ -89,9 +89,15 @@ function validate(body) {
   return errors;
 }
 
+// quien firma el mail: el usuario que lo envía (no el asesor del cliente)
+function firmante(o) {
+  const enviado = db.activity.find(a => a.ordenId === o.id && a.accion === 'Mail enviado al cliente');
+  return db.users.find(u => u.id === (enviado ? enviado.usuarioId : o.firmanteId)) || null;
+}
 function mailFor(o) {
   const c = db.clients.find(x => x.id === o.clienteId);
   const as = db.users.find(x => x.id === o.asesorId);
+  const f = firmante(o);
   const fmt = n => Number(n).toLocaleString('es-UY');
   const fecha = String(o.fechaInstruccion).split('-').reverse().join('/');
   const unidad = { Acción: 'acciones', Fondo: 'cuotas', Bono: 'VN', Opción: 'contratos' };
@@ -106,10 +112,10 @@ function mailFor(o) {
     `  • Vigencia: ${a.vigencia || 'Día'}`,
   ].join('\n'));
   return {
-    de: o.canal === 'directo' ? as.email : 'tradingdesk@roblecapital.net',
+    de: f && f.rol === 'asesor' ? f.email : 'tradingdesk@roblecapital.net',
     para: c.email, cc: [as.email, ...(o.copias || [])].join(', '),
     asunto: `Confirmación de orden - ${c.numero} - ${fecha}`,
-    cuerpo: `Estimado/a ${c.nombre}:\n\nLe solicitamos confirmar la siguiente orden:\n\nCliente: ${c.nombre}\nN° de cliente: ${c.numero}\nFecha: ${fecha}\n\n${activos.join('\n\n')}\n\nPara confirmar, responda este correo con "Confirmo" y el código: ${o.codigo}\n\nSaludos cordiales,\n${as.nombre}\nRoble Capital Wealth Management`,
+    cuerpo: `Estimado/a ${c.nombre}:\n\nLe solicitamos confirmar la siguiente orden:\n\nCliente: ${c.nombre}\nN° de cliente: ${c.numero}\nFecha: ${fecha}\n\n${activos.join('\n\n')}\n\nPara confirmar, responda este correo con "Confirmo" y el código: ${o.codigo}\n\nSaludos cordiales,\n${f ? f.nombre + '\n' : ''}${!f || f.rol === 'mesa' ? 'Trading Desk – ' : ''}Roble Capital Wealth Management`,
   };
 }
 
@@ -134,7 +140,7 @@ app.get('/api/orders/:id', auth(), (req, res) => {
 app.post('/api/orders/preview', auth('asesor', 'mesa'), (req, res) => {
   const errors = validate(req.body);
   if (errors.length) return res.status(422).json({ errors });
-  const fake = { ...req.body, numero: `ORD-${new Date().getFullYear()}-${String(db.seq).padStart(4, '0')}`, codigo: '••••••', asesorId: req.user.rol === 'asesor' ? req.user.id : db.clients.find(c => c.id === req.body.clienteId).asesorId };
+  const fake = { ...req.body, numero: `ORD-${new Date().getFullYear()}-${String(db.seq).padStart(4, '0')}`, codigo: '••••••', firmanteId: req.user.id, asesorId: req.user.rol === 'asesor' ? req.user.id : db.clients.find(c => c.id === req.body.clienteId).asesorId };
   res.json(mailFor(fake));
 });
 
