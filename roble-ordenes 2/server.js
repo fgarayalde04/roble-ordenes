@@ -9,7 +9,16 @@ const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 let db;
-try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { db = buildSeed(); save(); }
+function seed() {
+  const d = buildSeed();
+  d.responses.forEach(r => {
+    const o = d.orders.find(x => x.id === r.ordenId); if (!o) return;
+    const c = d.clients.find(x => x.id === o.clienteId);
+    r.asunto = `RE: Confirmación de orden - ${c.numero} - ${o.fechaInstruccion.split('-').reverse().join('/')}`;
+  });
+  return d;
+}
+try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch { db = seed(); save(); }
 function save() { fs.writeFileSync(DB_FILE, JSON.stringify(db)); }
 
 const ESTADOS = {
@@ -84,12 +93,23 @@ function mailFor(o) {
   const c = db.clients.find(x => x.id === o.clienteId);
   const as = db.users.find(x => x.id === o.asesorId);
   const fmt = n => Number(n).toLocaleString('es-UY');
-  const lines = o.activos.map((a, i) => `  ${i + 1}. ${a.operacion.toUpperCase()} ${fmt(a.cantidad)} ${a.tipo === 'Bono' ? 'VN' : 'u.'} de ${a.instrumento} (${a.ticker || a.tipo}) · ${a.moneda} · Precio: ${a.precio} · Vigencia: ${a.vigencia || 'Día'}${a.monto ? ` · Monto estimado ${a.moneda} ${fmt(a.monto)}` : ''}`);
+  const fecha = String(o.fechaInstruccion).split('-').reverse().join('/');
+  const unidad = { Acción: 'acciones', Fondo: 'cuotas', Bono: 'VN', Opción: 'contratos' };
+  const activos = o.activos.map((a, i) => [
+    `Orden ${i + 1}`,
+    `  • Operación: ${a.operacion}`,
+    `  • Instrumento: ${a.instrumento}${a.ticker && a.ticker !== a.instrumento ? ` (${a.ticker})` : ''}`,
+    `  • Tipo: ${a.tipo}`,
+    `  • Cantidad: ${fmt(a.cantidad)} ${unidad[a.tipo] || ''}`.trimEnd(),
+    `  • Precio: ${a.precio === 'Mercado' ? 'A mercado' : a.precio}`,
+    `  • Moneda: ${a.moneda}`,
+    `  • Vigencia: ${a.vigencia || 'Día'}`,
+  ].join('\n'));
   return {
     de: o.canal === 'directo' ? as.email : 'tradingdesk@roblecapital.net',
     para: c.email, cc: [as.email, ...(o.copias || [])].join(', '),
-    asunto: `Orden ${o.numero} – confirmación requerida`,
-    cuerpo: `Estimado/a ${c.nombre}:\n\nSegún lo conversado con ${as.nombre}, le enviamos la siguiente instrucción para su cuenta N.º ${c.numero}, de fecha ${o.fechaInstruccion}:\n\n${lines.join('\n')}\n\nPara aprobarla, responda este correo indicando "Confirmo" y el código de confirmación: ${o.codigo}\nSi no está de acuerdo, responda "No confirmo".\n\nRoble Capital no ejecutará la orden sin su aprobación expresa.\n\nSaludos cordiales,\nTrading Desk – Roble Capital Wealth Management`,
+    asunto: `Confirmación de orden - ${c.numero} - ${fecha}`,
+    cuerpo: `Estimado/a ${c.nombre}:\n\nLe solicitamos confirmar la siguiente orden:\n\nCliente: ${c.nombre}\nN° de cliente: ${c.numero}\nFecha: ${fecha}\n\n${activos.join('\n\n')}\n\nPara confirmar, responda este correo con "Confirmo" y el código: ${o.codigo}\n\nSaludos cordiales,\n${as.nombre}\nRoble Capital Wealth Management`,
   };
 }
 
@@ -197,7 +217,7 @@ app.post('/api/orders/:id/:action', auth(), (req, res, next) => {
 // En producción se leen de la casilla de Gmail (API de Gmail). En el prototipo publicado
 // la bandeja se alimenta con mails simulados, y se aplica la misma lógica de asociación.
 function parseReply(texto) {
-  const t = texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const t = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const rechaza = /\b(no confirmo|no autorizo|rechazo|no apruebo|cancel)/.test(t);
   const aprueba = !rechaza && /\b(confirmo|autorizo|apruebo|adelante|de acuerdo|ok)\b/.test(t);
   return rechaza ? 'rechaza' : aprueba ? 'aprueba' : 'indeterminado';
@@ -249,7 +269,7 @@ app.post('/api/orders/:id/simular-respuesta', auth(), (req, res) => {
   if (!requireState(o, res, 'mail_enviado')) return;
   const c = db.clients.find(x => x.id === o.clienteId);
   const aprueba = req.body.aprueba !== false;
-  const r = ingest({ de: c.email, asunto: `RE: Orden ${o.numero} – confirmación requerida`, cuerpo: aprueba ? `Confirmo. Código ${o.codigo}\n\n${c.nombre}` : `No confirmo, prefiero esperar. Código ${o.codigo}\n\n${c.nombre}` });
+  const r = ingest({ de: c.email, asunto: `RE: ${mailFor(o).asunto}`, cuerpo: aprueba ? `Confirmo. Código ${o.codigo}\n\n${c.nombre}` : `No confirmo, prefiero esperar. Código ${o.codigo}\n\n${c.nombre}` });
   save(); res.json(r);
 });
 
@@ -307,7 +327,7 @@ ${rows.join('\n')}
   res.send(xml);
 });
 
-app.post('/api/reset', auth(), (req, res) => { db = buildSeed(); save(); res.json({ ok: true }); });
+app.post('/api/reset', auth(), (req, res) => { db = seed(); save(); res.json({ ok: true }); });
 
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
